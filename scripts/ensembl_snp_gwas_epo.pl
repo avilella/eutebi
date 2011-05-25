@@ -3,7 +3,6 @@ use strict;
 use Getopt::Long;
 use Bio::EnsEMBL::Registry;
 
-my $self = bless {};
 my ($inputfile,$debug,$flanks,$query,$target);
 $flanks = 2500;
 $query  = 'homo_sapiens';
