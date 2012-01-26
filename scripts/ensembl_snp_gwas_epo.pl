@@ -16,13 +16,23 @@ GetOptions(
           );
 
 Bio::EnsEMBL::Registry->load_registry_from_db
-  (-host=>"ensembldb.ensembl.org",
+  (-host=>"mysql-ensembl-mirror.ebi.ac.uk",
+   -port=>4240,
    -user=>"anonymous",
-   -db_version=>'62');
+   -db_version=>'65');
+# Bio::EnsEMBL::Registry->load_registry_from_db
+#   (-host=>"ensembldb.ensembl.org",
+#    -user=>"anonymous",
+#    -db_version=>'62');
 Bio::EnsEMBL::Registry->no_version_check(1) unless ($debug);
 
 # variation
 my $var_adaptor = Bio::EnsEMBL::Registry->get_adaptor($query,"variation","variation");
+my $pop_adaptor = Bio::EnsEMBL::Registry->get_adaptor($query,"variation","population");
+
+# functgenomics
+my $regfeat_adaptor = Bio::EnsEMBL::Registry->get_adaptor($query, 'funcgen', 'regulatoryfeature');
+my $fset_adaptor   = Bio::EnsEMBL::Registry->get_adaptor($query, 'funcgen', 'featureset');
 
 # compara
 my $comparaDBA = Bio::EnsEMBL::Registry->get_DBAdaptor('compara', 'compara');
@@ -49,6 +59,7 @@ push @targets, $target; #TODO multiple species
 # header
 print "rsid\tphenotype\tassociated_gene\tsource\texternal_ref\tvfid\tquery\tquery_seq_region_name\tquery_strand\tquery_start\tquery_end\ttarget\ttarget_seq_region_name\ttarget_strand\ttarget_start\ttarget_end\n";
 
+my $descriptions_vector;
 open FILE,"$inputfile" or die $!;
 while (<FILE>) {
   chomp $_;
@@ -70,6 +81,23 @@ while (<FILE>) {
     $this_rsid->{rsid}{$rsid}{vfid}{$vf->dbID}{strand} = $query_slice->strand;
     $this_rsid->{rsid}{$rsid}{vfid}{$vf->dbID}{start} = $query_slice->start;
     $this_rsid->{rsid}{$rsid}{vfid}{$vf->dbID}{end} = $query_slice->end;
+
+    my @segfeat_fsets = @{$fset_adaptor->fetch_all_by_feature_class('segmentation')};
+    my $name_vector; my $name_length_vector;
+    foreach my $fset (@segfeat_fsets){
+      print STDERR $fset->name."\n" if ($debug > 1);
+      #      foreach my $seg_feat (@{$fset->get_Features_by_Slice($query_slice)}) {
+      foreach my $seg_feat (@{$fset->get_Features_by_Slice($slice)}) {
+        my $description = $seg_feat->feature_type->description;
+        my $name = $seg_feat->feature_type->name;
+        $descriptions_vector->{$description}++;
+        $name_vector->{$name}++;
+      }
+    }
+    my $concat_vector = print_hash_bins($name_vector);
+    $concat_vector =~ s/\ /\_/g;
+    $this_rsid->{rsid}{$rsid}{query_status} = $concat_vector;
+    $DB::single=$debug;1;
 
     my $genomic_align_trees = $genomic_align_tree_adaptor->fetch_all_by_MethodLinkSpeciesSet_Slice($method_link_species_set,$query_slice);
     next if (!$genomic_align_trees);
@@ -111,6 +139,7 @@ while (<FILE>) {
         my $source = $this_rsid->{rsid}{$rsid}{source};
         my $external_ref = $this_rsid->{rsid}{$rsid}{external_ref};
         my $query_seq_region_name = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{seq_region_name};
+        my $query_status = $this_rsid->{rsid}{$rsid}{query_status};
         my $query_strand = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{strand};
         my $query_start           = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{start};
         my $query_end             = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{end};
@@ -118,14 +147,57 @@ while (<FILE>) {
         my $target_strand = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{target}{$target}{strand} || 'na';
         my $target_start = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{target}{$target}{start} || 'na';
         my $target_end = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{target}{$target}{end} || 'na';
-        $DB::single=$debug;1;
-        print "$rsid\t$phenotype\t$associated_gene\t$source\t$external_ref\t$vfid\t$query\t$query_seq_region_name\t$query_strand\t$query_start\t$query_end\t$target\t$target_seq_region_name\t$target_strand\t$target_start\t$target_end\n";
+        print_hash_bins($descriptions_vector) if ($debug);
+        $rsid =~ s/\ /\_/g;
+
+        $phenotype               =~ s/\ /\_/g;
+        $associated_gene         =~ s/\ /\_/g;
+        $source                  =~ s/\ /\_/g;
+        $external_ref            =~ s/\ /\_/g;
+        $vfid                    =~ s/\ /\_/g;
+        $query                   =~ s/\ /\_/g;
+        $query_seq_region_name   =~ s/\ /\_/g;
+        $query_status            =~ s/\ /\_/g;
+        $query_strand            =~ s/\ /\_/g;
+        $query_start             =~ s/\ /\_/g;
+        $query_end               =~ s/\ /\_/g;
+        $target                  =~ s/\ /\_/g;
+        $target_seq_region_name  =~ s/\ /\_/g;
+        $target_strand           =~ s/\ /\_/g;
+        $target_start            =~ s/\ /\_/g;
+        $target_end              =~ s/\ /\_/g;
+        print "$rsid\t$phenotype\t$associated_gene\t$source\t$external_ref\t$vfid\t$query\t$query_seq_region_name\t$query_status\t$query_strand\t$query_start\t$query_end\t$target\t$target_seq_region_name\t$target_strand\t$target_start\t$target_end\n";
       }
     }
   }
 }
 
 close FILE;
+
+print_hash_bins($descriptions_vector);
+
+1;
+
+sub print_hash_bins
+  {
+    my $hash_ref = shift;
+    my @bins;
+    my $concat;
+    foreach my $key (keys %$hash_ref) {
+      my $bin = {};
+      $bin->{'count'} = $hash_ref->{$key};
+      $bin->{'name'} = $key; 
+      push @bins, $bin;
+    }
+    @bins = sort {$b->{'count'} <=> $a->{'count'}} @bins;
+    foreach my $bin (@bins) {
+      my $p = sprintf("\:%d:%s", $bin->{'count'}, $bin->{'name'});
+      $concat .= $p;
+      print STDERR "$p\n" if ($debug);
+    }
+    return $concat;
+  }
+
 
 1;
 
