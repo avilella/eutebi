@@ -3,7 +3,8 @@ use strict;
 use Getopt::Long;
 use Bio::EnsEMBL::Registry;
 
-my ($inputfile,$debug,$flanks,$query,$target);
+my ($inputfile,$debug,$flanks,$query,$target,$sep);
+$sep="\t";
 $flanks = 2500;
 $query  = 'homo_sapiens';
 $target = 'rattus_norvegicus';
@@ -13,6 +14,7 @@ GetOptions(
            'd|debug:s' => \$debug,
            'q|query:s'  => \$query,
            't|target:s' => \$target,
+           'sep|separator:s' => \$sep,
           );
 
 Bio::EnsEMBL::Registry->load_registry_from_db
@@ -57,7 +59,7 @@ my @targets;
 push @targets, $target; #TODO multiple species
 
 # header
-print "rsid\tphenotype\tassociated_gene\tsource\texternal_ref\tvfid\tquery\tquery_seq_region_name\tquery_strand\tquery_start\tquery_end\ttarget\ttarget_seq_region_name\ttarget_strand\ttarget_start\ttarget_end\n";
+print "rsid".$sep."phenotype".$sep."associated_gene".$sep."source".$sep."external_ref".$sep."vfid".$sep."query".$sep."query_seq_region_name".$sep."query_strand".$sep."query_start".$sep."query_end".$sep."target".$sep."target_seq_region_name".$sep."target_strand".$sep."target_start".$sep."target_end\n";
 
 my $descriptions_vector;
 open FILE,"$inputfile" or die $!;
@@ -135,15 +137,15 @@ while (<FILE>) {
   foreach my $rsid (keys %{$this_rsid->{rsid}}) {
     foreach my $vfid (keys %{$this_rsid->{rsid}{$rsid}{vfid}}) {
       foreach my $target (@targets) {
-        my $phenotype = $this_rsid->{rsid}{$rsid}{phenotype};
-        my $associated_gene = $this_rsid->{rsid}{$rsid}{associated_gene};
-        my $source = $this_rsid->{rsid}{$rsid}{source};
-        my $external_ref = $this_rsid->{rsid}{$rsid}{external_ref};
-        my $query_seq_region_name = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{seq_region_name};
-        my $query_status = $this_rsid->{rsid}{$rsid}{query_status};
-        my $query_strand = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{strand};
-        my $query_start           = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{start};
-        my $query_end             = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{end};
+        my $phenotype = $this_rsid->{rsid}{$rsid}{phenotype} || 'na';
+        my $associated_gene = $this_rsid->{rsid}{$rsid}{associated_gene} || 'na';
+        my $source = $this_rsid->{rsid}{$rsid}{source} || 'na';
+        my $external_ref = $this_rsid->{rsid}{$rsid}{external_ref} || 'na';
+        my $query_seq_region_name = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{seq_region_name} || 'na';
+        my $query_status = $this_rsid->{rsid}{$rsid}{query_status} || 'na';
+        my $query_strand = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{strand} || 'na';
+        my $query_start           = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{start}  || 'na';
+        my $query_end             = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{end}  || 'na';
         my $target_seq_region_name = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{target}{$target}{seq_region_name} || 'na';
         my $target_strand = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{target}{$target}{strand} || 'na';
         my $target_start = $this_rsid->{rsid}{$rsid}{vfid}{$vfid}{target}{$target}{start} || 'na';
@@ -167,7 +169,7 @@ while (<FILE>) {
         $target_strand           =~ s/\ /\_/g;
         $target_start            =~ s/\ /\_/g;
         $target_end              =~ s/\ /\_/g;
-        print "$rsid\t$phenotype\t$associated_gene\t$source\t$external_ref\t$vfid\t$query\t$query_seq_region_name\t$query_status\t$query_strand\t$query_start\t$query_end\t$target\t$target_seq_region_name\t$target_strand\t$target_start\t$target_end\n";
+        print "$rsid".$sep."$phenotype".$sep."$associated_gene".$sep."$source".$sep."$external_ref".$sep."$vfid".$sep."$query".$sep."$query_seq_region_name".$sep."$query_status".$sep."$query_strand".$sep."$query_start".$sep."$query_end".$sep."$target".$sep."$target_seq_region_name".$sep."$target_strand".$sep."$target_start".$sep."$target_end\n";
       }
     }
   }
