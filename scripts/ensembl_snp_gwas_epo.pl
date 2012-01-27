@@ -71,6 +71,7 @@ while (<FILE>) {
   $this_rsid->{rsid}{$rsid}{source} = $source;
   $this_rsid->{rsid}{$rsid}{external_ref} = $external_ref;
   my $var = $var_adaptor->fetch_by_name($rsid);
+  next if (!defined $var);
   if ($var->is_failed()) {    my $desc = $var->failed_description();    warn("# $desc. Skip\n");    next;  }
   if ($var->is_somatic()) {    warn("# Somatic mutation. Skip\n");    next;  }
 
